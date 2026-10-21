@@ -9,7 +9,11 @@ npm install
 npm run dev
 ```
 
-Jalankan perintah dari direktori `frontend`.
+Jalankan perintah dari direktori project ini.
+
+## Deploy ke GitHub Pages
+
+Workflow `.github/workflows/deploy.yml` membangun aplikasi Vite dan menerbitkan folder `dist` setiap kali ada push ke branch `main`. Di repository GitHub, buka **Settings → Pages** lalu pilih **GitHub Actions** sebagai source deployment.
 
 ## Data dan keputusan otomatisasi
 
