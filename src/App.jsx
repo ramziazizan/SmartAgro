@@ -9,7 +9,7 @@ import {
   Thermometer,
   Zap,
 } from 'lucide-react'
-import { fetchSensorData, fetchWeather } from './services/api.js'
+import { fetchSensorFromCSV, fetchWeather } from './services/api.js'
 import AutomationBanner from './components/AutomationBanner.jsx'
 import Header from './components/Header.jsx'
 import MetricsGrid from './components/MetricsGrid.jsx'
@@ -42,7 +42,7 @@ export default function App() {
     setSyncStatus('syncing')
 
     const [sensorResult, weatherResult] = await Promise.allSettled([
-      fetchSensorData(),
+      fetchSensorFromCSV(),
       fetchWeather(),
     ])
 
