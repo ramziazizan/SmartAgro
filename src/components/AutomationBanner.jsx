@@ -8,7 +8,7 @@ const ACTION_STYLES = {
   'Pompa Mati': 'border-sky-500/30 bg-sky-500/10 text-sky-300',
 }
 const STATUS_POLL_INTERVAL = 4000
-const DEFAULT_ESP32_IP = '192.168.1.105'
+const DEFAULT_ESP32_IP = '192.xxx.x.xxx'
 const ESP32_IP_STORAGE_KEY = 'smart-agro-esp32-ip'
 
 function getSavedEsp32Ip() {
@@ -116,7 +116,7 @@ export default function AutomationBanner({ action, forecastTime, moisture, weath
       await checkStatus()
     } catch (error) {
       setIsOnline(false)
-      setConnectionMessage('ESP32 Offline / Beda Wi-Fi.')
+      setConnectionMessage('ESP32 Offline.')
       console.error(`Gagal mengirim perintah ${command} ke ESP32:`, error)
     } finally {
       isBusyRef.current = false
@@ -132,7 +132,7 @@ export default function AutomationBanner({ action, forecastTime, moisture, weath
             <Zap aria-hidden="true" className="h-3.5 w-3.5" />
             OTOMATISASI SISTEM
           </div>
-          <h2 className="text-xl font-semibold text-white">Rekomendasi Otomatis</h2>
+          <h2 className="text-xl font-semibold text-white"> </h2>
           <p className="mt-1 max-w-xl text-sm text-slate-400">
             Keputusan dihitung dari kelembapan tanah (&lt; 40%) dan prakiraan cuaca satu jam berikutnya.
           </p>
@@ -158,14 +158,14 @@ export default function AutomationBanner({ action, forecastTime, moisture, weath
                 {weather || 'Menunggu data'}
               </strong>
               {forecastLabel && (
-                <span className="mt-1 block text-xs text-slate-500">Sekitar pukul {forecastLabel}</span>
+                <span className="mt-1 block text-xs text-slate-500">Sekitar pukul: {forecastLabel}</span>
               )}
             </div>
           </div>
 
           <div className="mt-5 border-t border-slate-800 pt-4">
             <span className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-500">
-              Rekomendasi Sistem
+              Status pompa saat ini:
             </span>
             <span
               className={`inline-flex rounded-lg border px-3 py-2 text-sm font-bold ${actionStyle}`}
@@ -178,7 +178,7 @@ export default function AutomationBanner({ action, forecastTime, moisture, weath
 
         <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h3 className="font-semibold text-white">Kontrol Manual ESP32</h3>
+            <h3 className="font-semibold text-white">Control Module</h3>
             <span
               className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${
                 isOnline
@@ -198,7 +198,7 @@ export default function AutomationBanner({ action, forecastTime, moisture, weath
 
           <form className="mt-4" onSubmit={handleConnect}>
             <label className="mb-2 block text-xs font-medium text-slate-400" htmlFor="esp32-ip">
-              Alamat IP ESP32
+              Alamat IP Module ESP
             </label>
             <div className="flex flex-col gap-2 sm:flex-row">
               <input
