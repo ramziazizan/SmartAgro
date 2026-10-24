@@ -91,6 +91,14 @@ export function createApp(config, bridge) {
     response.json(bridge.getStatus())
   })
 
+  app.get('/api/device/snapshot', (_request, response) => {
+    response.json({
+      ...bridge.getStatus(),
+      telemetry: bridge.getTelemetry().data,
+      telemetryReceivedAt: bridge.getTelemetry().receivedAt,
+    })
+  })
+
   app.get('/api/device/telemetry', (_request, response) => {
     response.json(bridge.getTelemetry())
   })

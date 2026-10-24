@@ -8,7 +8,7 @@ Dashboard React/Vite menampilkan telemetry terbaru dari Google Sheets CSV (fallb
 Browser (React) --HTTPS/Bearer token--> Backend API --MQTTS--> MQTT broker <--MQTTS-- ESP32
 ```
 
-Kredensial broker hanya berada pada backend. Jangan menaruh password broker, token broker, atau signing secret di `VITE_*`, file source frontend, atau GitHub Pages variables. Frontend hanya menerima URL publik backend dan token sesi sementara setelah pengguna login.
+Kredensial broker hanya berada di environment variables fungsi backend Vercel. Jangan menaruh password broker, token broker, atau signing secret di `VITE_*` atau file source frontend.
 
 ## Menjalankan lokal
 
@@ -25,7 +25,7 @@ npm run dev:api
 npm run dev
 ```
 
-Frontend memakai `http://localhost:3001` secara default. Untuk override, salin `.env.example` ke `.env.local` lalu atur `VITE_API_BASE_URL`. File `.env`, `.env.local`, dan `backend/.env` diabaikan Git.
+Vite meneruskan request `/api` ke backend lokal di `http://localhost:3001`. Frontend memakai relative API path sehingga di Vercel API dan SPA menggunakan origin yang sama. File `.env`, `.env.local`, dan `backend/.env` diabaikan Git.
 
 Jalankan pemeriksaan:
 
@@ -68,7 +68,7 @@ Backend menolak broker non-TLS, memvalidasi autentikasi dashboard, membatasi per
 5. Pastikan `MQTT_CLIENT_ID` backend berbeda dari client ID ESP32. Topic harus sama persis dengan firmware; nilai default repo menghasilkan topic `smartagro/esp32-01/command/pump`, `smartagro/esp32-01/status/pump`, dan `smartagro/esp32-01/telemetry`.
 6. Jalankan backend dengan `npm run dev:api`. Periksa `http://localhost:3001/api/health`: respons `mqtt.configured` harus `true` dan `mqtt.connected` menjadi `true`. Jika tidak terhubung, periksa hostname/port TLS, username/password, konfigurasi autentikasi/ACL, serta aturan network access di deployment EMQX.
 
-Jangan menambahkan `MQTT_*`, `DASHBOARD_PASSWORD`, atau `AUTH_TOKEN_SECRET` ke `.env` frontend, `VITE_*`, GitHub Pages, maupun chat. Untuk deployment, masukkan secret MQTT hanya ke environment variables hosting backend. `FRONTEND_ORIGINS` dan `VITE_API_BASE_URL` tetap dikonfigurasi terpisah dari EMQX.
+Jangan menambahkan `MQTT_*`, `DASHBOARD_PASSWORD`, atau `AUTH_TOKEN_SECRET` ke `.env` frontend, `VITE_*`, GitHub, maupun chat. Untuk deployment Vercel, masukkan secret MQTT hanya ke environment variables project Vercel.
 
 ## Kontrak MQTT untuk firmware ESP32
 
@@ -96,22 +96,32 @@ Folder `firmware/esp32-smart-agro/` berisi sketch Arduino IDE yang memakai satu 
 
 `secureClient.setInsecure()` disediakan hanya untuk pengujian awal TLS dan tidak memvalidasi sertifikat broker. Untuk penggunaan permanen, ganti dengan verifikasi sertifikat CA EMQX. Jangan hubungkan pompa bermuatan listrik sebelum rangkaian, catu daya, relay, dan kondisi fail-safe diperiksa teknisi yang kompeten.
 
-## Deployment ke Render
+## Deployment ke Vercel
 
-Repository menyediakan `render.yaml` untuk membuat dua service dari satu repository GitHub: backend MQTT (`smart-agro-api`) dan React static site (`smart-agro-dashboard`). Setelah menghubungkan repository ke Render, buat Blueprint dari root repository. Setiap push ke branch yang terhubung akan memicu deploy otomatis sesuai pengaturan Blueprint.
+Project dideploy sebagai Vercel project dengan dua service: `smart-agro-dashboard` (Vite SPA) dan `smart-agro-api` (Express API). Rewrite publik mengarahkan `/api/*` ke API dan path lainnya ke dashboard. Import repository ke Vercel dengan Root Directory di root repository; `vercel.json` mengatur instalasi dan build tiap service.
 
-Saat membuat Blueprint, isi environment variables yang ditandai **secret** untuk backend:
+Service API menggunakan `backend/src/vercel.js`, yang memanggil handler request-scoped `backend/src/vercelHandler.js`. Handler ini membuka koneksi MQTT TLS singkat per request untuk membaca retained message atau mengirim command; proses ini tidak bergantung pada MQTT bridge persisten yang dipakai saat menjalankan backend lokal.
 
-- `FRONTEND_ORIGINS`: setelah static site dibuat, isi dengan origin URL Render frontend saja, misalnya `https://smart-agro-dashboard.onrender.com` (tanpa path atau garis miring akhir).
-- `MQTT_BROKER_URL`, `MQTT_USERNAME`, `MQTT_PASSWORD`: credential koneksi TLS EMQX.
-- `DASHBOARD_USERNAME`, `DASHBOARD_PASSWORD`, `AUTH_TOKEN_SECRET`: login dashboard dan signing secret backend.
+Tambahkan environment variables berikut pada project Vercel (Production, dan Preview bila digunakan):
 
-Variabel topic dan MQTT client ID menggunakan nilai default yang didefinisikan di `render.yaml`. Blueprint menghubungkan `VITE_API_BASE_URL` frontend ke hostname service backend secara otomatis; URL API ini bukan secret. Jangan masukkan secret ke GitHub, `VITE_*`, atau file yang di-commit. Jika URL frontend Render berubah, perbarui `FRONTEND_ORIGINS` backend.
+- `MQTT_BROKER_URL`: endpoint TLS EMQX, format `mqtts://hostname:8883`.
+- `MQTT_USERNAME` / `MQTT_PASSWORD`: credential backend MQTT khusus dengan izin sesuai topic yang digunakan.
+- `MQTT_CLIENT_ID`: opsional, default `smart-agro-backend`; handler menambahkan suffix unik per koneksi.
+- `MQTT_TOPIC_PREFIX`: opsional, default `smartagro`.
+- `MQTT_DEVICE_ID`: opsional, default `esp32-01`.
+- `DASHBOARD_USERNAME`, `DASHBOARD_PASSWORD` (minimal 12 karakter), dan `AUTH_TOKEN_SECRET` (minimal 32 karakter acak).
+- `FRONTEND_ORIGINS`: opsional, daftar origin tambahan yang diizinkan, dipisahkan koma. Tambahkan domain kustom di sini jika frontend diakses melalui domain itu.
 
-Setelah kedua service berstatus live, buka URL backend `/api/health` dan pastikan `api` bernilai `ok`, `mqtt.configured` bernilai `true`, dan `mqtt.connected` bernilai `true`. Kemudian buka URL static site, login dengan credential dashboard yang diset di Render, dan cek status ESP32. Render Free Web Service dapat tidur saat idle; untuk koneksi MQTT yang selalu aktif dan kontrol perangkat yang andal, gunakan instance backend yang tidak sleep sesuai opsi plan Render.
+Jangan set `VITE_API_BASE_URL` di Vercel; frontend memanggil `/api` pada origin yang sama. Tidak ada service binding karena browser memakai routing publik `/api/*` dan API hanya berkomunikasi dengan broker MQTT eksternal. MQTT credential dan signing secret tidak boleh dimasukkan ke GitHub atau variabel `VITE_*`.
+
+### Batasan Vercel Functions dan retained MQTT
+
+Vercel Functions tidak menjaga satu koneksi MQTT terus-menerus. Setiap request status/telemetry membuka koneksi TLS singkat, mengambil retained message dari broker, lalu menutup koneksi; command juga dipublish lewat koneksi singkat. Karena itu firmware wajib publish status retained berkala ke `smartagro/esp32-01/status/pump` dan telemetry retained ke `smartagro/esp32-01/telemetry`. Status harus menyertakan `online` dan `pumpOn`; Last Will retained `{"online":false,"pumpOn":null}` membantu broker menyimpan kondisi offline saat ESP32 terputus. Telemetry harus membawa `timestamp` epoch milliseconds atau ISO timestamp yang diperbarui tiap publish; retained data lebih tua dari 60 detik dianggap stale. Endpoint Vercel menggabungkan status dan telemetry dalam satu request, dengan polling dashboard tiap 15 detik agar jumlah invocation lebih terkendali.
+
+Rate limit in-memory pada serverless hanya berlaku per instance, bukan pembatas terdistribusi. Untuk kontrol pompa publik/produksi, tambahkan rate limit bersama dan validasi operasional yang lebih kuat, uji ACL broker, serta uji disconnect/reconnect perangkat. Free Hobby plan memiliki batas usage dan eligibility yang ditetapkan Vercel; cek dashboard saat signup, dan jangan aktifkan billing/upgrade jika tidak ingin menambahkan metode pembayaran.
 
 ## Data sensor dan penyimpanan
 
-Google Sheets tetap menjadi sumber penyimpanan yang dibaca langsung oleh frontend, bukan database relasional. MQTT broker meneruskan pesan dan backend menyimpan status terbaru hanya di memori; sistem ini belum menyimpan riwayat telemetry MQTT. Jika ingin semua telemetry MQTT dicatat ke Sheets atau database, tambahkan integrasi penyimpanan pada backend.
+Google Sheets tetap menjadi sumber penyimpanan yang dibaca langsung oleh frontend, bukan database relasional. Untuk Vercel, status dan telemetry diambil dari retained MQTT message dan tidak disimpan sebagai riwayat di function. Jika ingin menyimpan riwayat, tambahkan integrasi database atau Google Sheets API.
 
 Refresh CSV otomatis berjalan setiap 30 detik. Prediksi cuaca menggunakan Open-Meteo di koordinat Medan (3.5952, 98.6722).

@@ -1,9 +1,4 @@
-const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
-const API_BASE_URL = (
-  /^https?:\/\//i.test(configuredApiBaseUrl)
-    ? configuredApiBaseUrl
-    : `https://${configuredApiBaseUrl}`
-).replace(/\/+$/, '')
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '')
 
 async function request(path, { token, ...options } = {}) {
   const headers = new Headers(options.headers)
@@ -43,6 +38,10 @@ export function logInToMqttApi(username, password) {
 
 export function getMqttDeviceStatus(token) {
   return request('/api/device/status', { token })
+}
+
+export function getMqttDeviceSnapshot(token) {
+  return request('/api/device/snapshot', { token })
 }
 
 export function getMqttDeviceTelemetry(token) {

@@ -2,14 +2,13 @@ import { useCallback, useEffect, useState } from 'react'
 import { LogIn, LogOut, Power, Wifi, WifiOff } from 'lucide-react'
 import {
   getMqttApiHealth,
-  getMqttDeviceStatus,
-  getMqttDeviceTelemetry,
+  getMqttDeviceSnapshot,
   logInToMqttApi,
   sendMqttPumpCommand,
 } from '../services/mqttApi.js'
 
-const STATUS_POLL_INTERVAL = 4000
-const HEALTH_POLL_INTERVAL = 10_000
+const STATUS_POLL_INTERVAL = 15_000
+const HEALTH_POLL_INTERVAL = 60_000
 
 export default function MqttControlPanel({ onPumpStatusUpdate, onTelemetryUpdate }) {
   const [token, setToken] = useState('')
@@ -40,42 +39,31 @@ export default function MqttControlPanel({ onPumpStatusUpdate, onTelemetryUpdate
   const checkDevice = useCallback(async () => {
     if (!token) return
 
-    const [statusResult, telemetryResult] = await Promise.allSettled([
-      getMqttDeviceStatus(token),
-      getMqttDeviceTelemetry(token),
-    ])
-
-    if (statusResult.status === 'fulfilled') {
-      const status = statusResult.value
+    try {
+      const snapshot = await getMqttDeviceSnapshot(token)
       const nextPumpStatus = {
-        online: Boolean(status.online),
-        pumpOn: typeof status.pumpOn === 'boolean' ? status.pumpOn : null,
+        online: Boolean(snapshot.online),
+        pumpOn: typeof snapshot.pumpOn === 'boolean' ? snapshot.pumpOn : null,
       }
       setPumpOn(nextPumpStatus.pumpOn)
       setDeviceOnline(nextPumpStatus.online)
       onPumpStatusUpdate(nextPumpStatus)
-      if (status.online) setMessage('Status ESP32 tersinkron melalui MQTT.')
+      if (snapshot.online) setMessage('Status ESP32 tersinkron melalui MQTT.')
       else setMessage('Menunggu feedback ESP32.')
-    } else {
+      onTelemetryUpdate(snapshot.telemetry)
+    } catch (error) {
       onPumpStatusUpdate(null)
-      if (statusResult.reason.status === 401) {
+      onTelemetryUpdate(null)
+      if (error.status === 401) {
         setToken('')
         setPumpOn(null)
         setDeviceOnline(false)
-        onTelemetryUpdate(null)
         setMessage('Sesi login berakhir. Silakan login kembali.')
       } else {
         setPumpOn(null)
         setDeviceOnline(false)
-        setMessage(statusResult.reason.message)
+        setMessage(error.message)
       }
-    }
-
-    if (telemetryResult.status === 'fulfilled') {
-      onTelemetryUpdate(telemetryResult.value.data)
-    } else if (telemetryResult.reason.status === 401) {
-      setToken('')
-      onTelemetryUpdate(null)
     }
   }, [onPumpStatusUpdate, onTelemetryUpdate, token])
 
