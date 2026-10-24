@@ -1,5 +1,5 @@
 const SHEET_CSV_URL =
-  'https://docs.google.com/spreadsheets/d/10P_5T0kOlcCjmxXzyBLU8qr76NiOYcmliPZwH7rehg8/edit?usp=sharing'
+  'https://docs.google.com/spreadsheets/d/10P_5T0kOlcCjmxXzyBLU8qr76NiOYcmliPZwH7rehg8/export?format=csv'
 const OPEN_METEO_URL =
   'https://api.open-meteo.com/v1/forecast?latitude=3.5952&longitude=98.6722&current=weather_code&hourly=weather_code,precipitation_probability&forecast_days=1&timezone=Asia%2FBangkok'
 const RAIN_WEATHER_CODES = new Set([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99])
@@ -54,6 +54,11 @@ export async function fetchSensorFromCSV() {
   }
 
   const csvText = (await response.text()).replace(/^\uFEFF/, '')
+  const contentType = response.headers.get('content-type') || ''
+  if (contentType.includes('text/html') || /^\s*<!doctype html/i.test(csvText)) {
+    throw new Error('Google Sheets mengembalikan halaman web, bukan CSV. Periksa akses spreadsheet.')
+  }
+
   const rows = parseCsv(csvText)
   const dataRows = rows.slice(1)
   const latestRow = dataRows[dataRows.length - 1]
