@@ -11,6 +11,10 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+.env.*
+!.env.example
+/firmware/esp32-smart-agro/secrets.h
 
 # Editor directories and files
 .vscode/*

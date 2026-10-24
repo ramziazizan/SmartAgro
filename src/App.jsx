@@ -25,7 +25,9 @@ function getAutomationAction(moisture, weather) {
 }
 
 export default function App() {
-  const [sensorData, setSensorData] = useState(null)
+  const [csvSensorData, setCsvSensorData] = useState(null)
+  const [mqttSensorData, setMqttSensorData] = useState(null)
+  const [pumpStatus, setPumpStatus] = useState(null)
   const [weather, setWeather] = useState(null)
   const [sensorError, setSensorError] = useState('')
   const [weatherError, setWeatherError] = useState('')
@@ -33,6 +35,7 @@ export default function App() {
   const [lastUpdated, setLastUpdated] = useState(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const requestInProgress = useRef(false)
+  const mqttSensorDataRef = useRef(null)
 
   const refreshData = useCallback(async () => {
     if (requestInProgress.current) return
@@ -47,12 +50,14 @@ export default function App() {
     ])
 
     if (sensorResult.status === 'fulfilled') {
-      setSensorData(sensorResult.value)
+      setCsvSensorData(sensorResult.value)
       setSensorError('')
     } else {
       console.error('Gagal mengambil data sensor:', sensorResult.reason)
-      setSensorData(null)
-      setSensorError('Data sensor gagal dimuat. Periksa koneksi atau akses spreadsheet.')
+      if (!mqttSensorDataRef.current) {
+        setCsvSensorData(null)
+        setSensorError('Data sensor gagal dimuat. Periksa koneksi atau akses spreadsheet.')
+      }
     }
 
     if (weatherResult.status === 'fulfilled') {
@@ -83,6 +88,43 @@ export default function App() {
     }
   }, [refreshData])
 
+  const handleMqttTelemetry = useCallback((telemetry) => {
+    if (!telemetry || typeof telemetry !== 'object') {
+      mqttSensorDataRef.current = null
+      setMqttSensorData(null)
+      return
+    }
+
+    const parseValue = (value) => {
+      if (value === null || value === undefined || value === '') return null
+      const number = Number(value)
+      return Number.isFinite(number) ? number : null
+    }
+    const timestamp = telemetry.timestamp ?? telemetry.updatedAt ?? ''
+
+    const nextSensorData = {
+      timestamp: typeof timestamp === 'number'
+        ? new Date(timestamp).toLocaleString('id-ID')
+        : String(timestamp),
+      ph: parseValue(telemetry.ph),
+      temperature: parseValue(telemetry.temperature ?? telemetry.temp),
+      ec: parseValue(telemetry.ec),
+      moisture: parseValue(telemetry.moisture ?? telemetry.moist),
+      nitrogen: parseValue(telemetry.nitrogen ?? telemetry.n),
+      phosphorus: parseValue(telemetry.phosphorus ?? telemetry.p),
+      potassium: parseValue(telemetry.potassium ?? telemetry.k),
+      deviceId: telemetry.deviceId || telemetry.device_id || 'ESP32',
+    }
+    mqttSensorDataRef.current = nextSensorData
+    setMqttSensorData(nextSensorData)
+    setSensorError('')
+  }, [])
+
+  const handlePumpStatusUpdate = useCallback((status) => {
+    setPumpStatus(status)
+  }, [])
+
+  const sensorData = mqttSensorData || csvSensorData
   const moisture = sensorData?.moisture
   const action = getAutomationAction(moisture, weather?.condition)
   const metrics = [
@@ -161,6 +203,9 @@ export default function App() {
           action={action}
           forecastTime={weather?.forecastTime}
           moisture={moisture}
+          onPumpStatusUpdate={handlePumpStatusUpdate}
+          onTelemetryUpdate={handleMqttTelemetry}
+          pumpStatus={pumpStatus}
           weather={weather?.condition}
         />
 
