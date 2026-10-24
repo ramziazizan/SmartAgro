@@ -1,5 +1,8 @@
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
 const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
+  /^https?:\/\//i.test(configuredApiBaseUrl)
+    ? configuredApiBaseUrl
+    : `https://${configuredApiBaseUrl}`
 ).replace(/\/+$/, '')
 
 async function request(path, { token, ...options } = {}) {

@@ -96,11 +96,19 @@ Folder `firmware/esp32-smart-agro/` berisi sketch Arduino IDE yang memakai satu 
 
 `secureClient.setInsecure()` disediakan hanya untuk pengujian awal TLS dan tidak memvalidasi sertifikat broker. Untuk penggunaan permanen, ganti dengan verifikasi sertifikat CA EMQX. Jangan hubungkan pompa bermuatan listrik sebelum rangkaian, catu daya, relay, dan kondisi fail-safe diperiksa teknisi yang kompeten.
 
-## Deployment
+## Deployment ke Render
 
-Deploy backend ke layanan Node.js yang menyediakan HTTPS, misalnya Render, Railway, atau VM dengan reverse proxy TLS. Masukkan seluruh nilai dari `backend/.env.example` sebagai environment variables rahasia pada layanan hosting. Jangan commit file `.env`.
+Repository menyediakan `render.yaml` untuk membuat dua service dari satu repository GitHub: backend MQTT (`smart-agro-api`) dan React static site (`smart-agro-dashboard`). Setelah menghubungkan repository ke Render, buat Blueprint dari root repository. Setiap push ke branch yang terhubung akan memicu deploy otomatis sesuai pengaturan Blueprint.
 
-Untuk frontend GitHub Pages, tambahkan `VITE_API_BASE_URL` (URL HTTPS backend) sebagai **Actions variable** di repository. Tambahkan origin `https://<username>.github.io` pada `FRONTEND_ORIGINS` backend, lalu deploy ulang frontend. URL API bukan secret; credential broker tetap hanya di environment backend.
+Saat membuat Blueprint, isi environment variables yang ditandai **secret** untuk backend:
+
+- `FRONTEND_ORIGINS`: setelah static site dibuat, isi dengan origin URL Render frontend saja, misalnya `https://smart-agro-dashboard.onrender.com` (tanpa path atau garis miring akhir).
+- `MQTT_BROKER_URL`, `MQTT_USERNAME`, `MQTT_PASSWORD`: credential koneksi TLS EMQX.
+- `DASHBOARD_USERNAME`, `DASHBOARD_PASSWORD`, `AUTH_TOKEN_SECRET`: login dashboard dan signing secret backend.
+
+Variabel topic dan MQTT client ID menggunakan nilai default yang didefinisikan di `render.yaml`. Blueprint menghubungkan `VITE_API_BASE_URL` frontend ke hostname service backend secara otomatis; URL API ini bukan secret. Jangan masukkan secret ke GitHub, `VITE_*`, atau file yang di-commit. Jika URL frontend Render berubah, perbarui `FRONTEND_ORIGINS` backend.
+
+Setelah kedua service berstatus live, buka URL backend `/api/health` dan pastikan `api` bernilai `ok`, `mqtt.configured` bernilai `true`, dan `mqtt.connected` bernilai `true`. Kemudian buka URL static site, login dengan credential dashboard yang diset di Render, dan cek status ESP32. Render Free Web Service dapat tidur saat idle; untuk koneksi MQTT yang selalu aktif dan kontrol perangkat yang andal, gunakan instance backend yang tidak sleep sesuai opsi plan Render.
 
 ## Data sensor dan penyimpanan
 
