@@ -14,7 +14,7 @@ import AutomationBanner from './components/AutomationBanner.jsx'
 import Header from './components/Header.jsx'
 import MetricsGrid from './components/MetricsGrid.jsx'
 
-const REFRESH_INTERVAL = 30_000
+const REFRESH_INTERVAL = 15_000
 
 function getAutomationAction(moisture, weather) {
   if (typeof moisture !== 'number') return null
