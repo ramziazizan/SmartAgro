@@ -228,11 +228,13 @@ Jangan masukkan kredensial ke source code atau commit file `.env`/`secrets.h`. S
 
 Untuk development lokal, salin `Source Code Dashboard/frontend/.env.example` menjadi `.env` di folder `Source Code Dashboard/frontend` dan isi `VITE_SHEETS_CSV_URL` dengan URL CSV publik. URL tersebut sengaja tidak disimpan di source code; jangan gunakan variabel `VITE_*` untuk nilai rahasia.
 
-## Universitas Islam Negeri Sumatera Utara
-## Fakultas Sains dan Teknologi
-## Prodi Ilmu Komputer
-Tim kami:
+## Identitas Tim
 
+Tim kami:
 - Ramzi Azizan
 - M. Taufan Pasya Lubis
 - Amanda Putri Rizkita
+
+Universitas Islam Negeri Sumatera Utara
+Fakultas Sains dan Teknologi
+Prodi Ilmu Komputer
