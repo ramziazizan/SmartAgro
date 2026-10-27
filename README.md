@@ -1,33 +1,70 @@
-# Smart Agro Dashboard
+# Smart Agro Dev
 
-Dashboard React/Vite menampilkan telemetry terbaru dari Google Sheets CSV (fallback), prakiraan cuaca Open-Meteo, dan data telemetry live dari MQTT ketika dashboard sudah login. Kontrol pompa menggunakan API backend yang meneruskan perintah ke broker MQTT melalui koneksi TLS.
+## Deskripsi Proyek
 
-## Arsitektur
+Smart Agro adalah sistem pemantauan kondisi tanaman dan pengendalian pompa berbasis ESP32. Sistem ini menggabungkan perangkat sensor, dashboard web, Google Sheets, prakiraan cuaca Open-Meteo, dan komunikasi MQTT.
 
-```text
-Browser (React) --HTTPS/Bearer token--> Backend API --MQTTS--> MQTT broker <--MQTTS-- ESP32
-```
+Dashboard menampilkan data kelembapan tanah, suhu, pH, EC, nitrogen, fosfor, kalium, serta identitas perangkat jika datanya tersedia. Dashboard juga menampilkan prakiraan cuaca dan rekomendasi tindakan penyiraman.
 
-Kredensial broker hanya berada di environment variables fungsi backend Vercel. Jangan menaruh password broker, token broker, atau signing secret di `VITE_*` atau file source frontend.
+## Latar Belakang dan Tujuan
 
-## Menjalankan lokal
+Penyiraman yang tidak sesuai kebutuhan dapat membuat tanaman kekurangan air atau menggunakan air secara berlebihan. Pemeriksaan kondisi tanaman secara manual juga menyulitkan pemantauan berkelanjutan.
 
-Pasang dependency frontend:
+Smart Agro dibuat untuk membantu memantau kondisi tanaman melalui satu dashboard, mempertimbangkan kelembapan tanah dan prakiraan hujan saat memberikan rekomendasi, serta menyediakan kendali pompa dari jarak jauh melalui MQTT. Tujuannya adalah membantu pengguna mengambil keputusan penyiraman dengan informasi yang lebih mudah diakses.
 
-```sh
-npm ci
-```
+## Cara Kerja Sistem
 
-Salin `backend/.env.example` menjadi `backend/.env` lalu isi konfigurasi. Jalankan backend dan frontend di dua terminal dari root project:
+### Perangkat
 
-```sh
-npm run dev:api
-npm run dev
-```
+1. ESP32 terhubung ke Wi-Fi dan broker MQTT menggunakan koneksi TLS.
+2. ESP32 menerima perintah pompa `ON` atau `OFF` dari broker MQTT.
+3. Satu perintah mengendalikan satu relay di pin GPIO 26
+4. ESP32 mengirimkan status online dan status pompa ke broker secara berkala.
 
-Vite meneruskan request `/api` ke backend lokal di `http://localhost:3001`. Frontend memakai relative API path sehingga di Vercel API dan SPA menggunakan origin yang sama. File `.env`, `.env.local`, dan `backend/.env` diabaikan Git.
+Sketch firmware yang tersedia saat ini menangani koneksi MQTT dan kendali empat relay. Sketch tersebut belum membaca sensor atau mengirim telemetry sensor. Dashboard membaca data sensor dari Google Sheets CSV, dan dapat memakai telemetry MQTT apabila perangkat lain mengirimkannya dengan format yang didukung.
 
-Jalankan pemeriksaan:
+### Dashboard
+
+1. Aplikasi React mengambil baris data terbaru dari Google Sheets melalui URL ekspor CSV.
+2. Aplikasi mengambil prakiraan cuaca dari Open-Meteo untuk koordinat Medan.
+3. Data dan rekomendasi dashboard diperbarui setiap 15 detik.
+4. Sistem menampilkan rekomendasi berdasarkan kelembapan tanah dan prakiraan cuaca:
+   - Kelembapan di bawah 40% dan cuaca cerah: rekomendasi pompa hidup.
+   - Kelembapan di bawah 40% dan diprediksi hujan: rekomendasi pompa mati.
+   - Kelembapan 40% atau lebih: rekomendasi pompa mati.
+5. Untuk melihat status perangkat dan mengirim kendali pompa, pengguna login pada panel MQTT. API meneruskan perintah ke broker, lalu ESP32 mengendalikan keempat relay.
+
+**Catatan:** rekomendasi berdasarkan sensor dan cuaca hanya ditampilkan di dashboard; rekomendasi tersebut belum otomatis mengirim perintah ON/OFF. Pompa dikendalikan melalui panel kontrol secara manual.
+
+## Cara Menjalankan Sistem
+
+### Menjalankan dashboard dan API secara lokal
+
+Persyaratan: Node.js versi 20 atau lebih baru dan npm.
+
+1. Clone repository dan buka terminal di direktori project.
+2. Pasang dependency frontend:
+
+   ```sh
+   npm ci
+   ```
+
+3. Jika ingin menggunakan fitur MQTT, salin `backend/.env.example` menjadi `backend/.env`, kemudian isi konfigurasi broker MQTT dan akun dashboard. Jangan masukkan kredensial ke source code atau commit file `.env`.
+4. Jalankan backend lokal di terminal pertama:
+
+   ```sh
+   npm run dev:api
+   ```
+
+5. Jalankan dashboard di terminal kedua:
+
+   ```sh
+   npm run dev
+   ```
+
+6. Buka alamat lokal yang ditampilkan Vite di terminal. Dashboard dapat menampilkan data CSV dan cuaca; fitur status serta kendali pompa membutuhkan konfigurasi broker dan login MQTT yang valid.
+
+Vite meneruskan request `/api` ke backend lokal di `http://localhost:3001`. Untuk memeriksa kualitas kode dan build, jalankan:
 
 ```sh
 npm run lint
@@ -35,93 +72,29 @@ npm run build
 npm run test:api
 ```
 
-## Konfigurasi backend dan broker
-
-Salin `backend/.env.example` menjadi `backend/.env` dan isi:
-
-- `MQTT_BROKER_URL`: hostname endpoint koneksi MQTT dari EMQX Cloud, dengan format `mqtts://<hostname>:8883`. Gunakan endpoint dan port TLS yang ditampilkan di detail deployment; jangan gunakan URL dashboard EMQX atau alamat WebSocket.
-- `MQTT_USERNAME` / `MQTT_PASSWORD`: credential MQTT yang dibuat pada deployment EMQX. Buat credential khusus backend; jangan gunakan credential pribadi atau menaruhnya di frontend.
-- `MQTT_CLIENT_ID`: client ID unik backend.
-- `MQTT_TOPIC_PREFIX` / `MQTT_DEVICE_ID`: harus sama dengan yang dipakai firmware.
-- `DASHBOARD_USERNAME` / `DASHBOARD_PASSWORD`: akun login dashboard. Gunakan password unik minimal 12 karakter.
-- `AUTH_TOKEN_SECRET`: random secret minimal 32 karakter untuk token API sesi 1 jam.
-- `FRONTEND_ORIGINS`: origin lengkap frontend yang diizinkan, pisahkan beberapa origin dengan koma.
-
-Backend menolak broker non-TLS, memvalidasi autentikasi dashboard, membatasi percobaan login, dan menerapkan CORS berdasarkan origin yang diizinkan. Token dashboard hanya disimpan di memori frontend dan kedaluwarsa setelah satu jam.
-
-### Langkah EMQX Cloud Serverless
-
-1. Buka deployment Serverless di EMQX Cloud, lalu salin **MQTT connection endpoint/hostname** dan port TLS dari halaman detail koneksi. Pastikan alamatnya untuk koneksi MQTT/TLS, bukan endpoint WebSocket atau alamat halaman dashboard.
-2. Di pengaturan autentikasi deployment, aktifkan autentikasi username/password bila belum aktif, lalu buat username dan password MQTT. Simpan password dengan aman; jangan kirim atau commit ke repository.
-3. Jika deployment menyediakan pengaturan authorization/ACL, batasi credential backend agar hanya dapat subscribe ke `<prefix>/<device-id>/status/pump` dan `<prefix>/<device-id>/telemetry`, serta publish ke `<prefix>/<device-id>/command/pump`. Buat credential ESP32 terpisah dengan izin publish status/telemetry dan subscribe command. Jika ACL belum dikonfigurasi, pastikan setidaknya autentikasi broker aktif dan jangan gunakan credential admin.
-4. Isi `backend/.env` lokal (atau environment variables di hosting backend). Contoh, ganti hostname dengan nilai dari console EMQX dan isi credential hanya di mesin/hosting backend:
-
-   ```dotenv
-   MQTT_BROKER_URL=mqtts://<hostname-dari-emqx>:8883
-   MQTT_USERNAME=<username-backend>
-   MQTT_PASSWORD=<password-backend>
-   MQTT_CLIENT_ID=smart-agro-backend-unik
-   MQTT_TOPIC_PREFIX=smartagro
-   MQTT_DEVICE_ID=esp32-01
-   ```
-
-5. Pastikan `MQTT_CLIENT_ID` backend berbeda dari client ID ESP32. Topic harus sama persis dengan firmware; nilai default repo menghasilkan topic `smartagro/esp32-01/command/pump`, `smartagro/esp32-01/status/pump`, dan `smartagro/esp32-01/telemetry`.
-6. Jalankan backend dengan `npm run dev:api`. Periksa `http://localhost:3001/api/health`: respons `mqtt.configured` harus `true` dan `mqtt.connected` menjadi `true`. Jika tidak terhubung, periksa hostname/port TLS, username/password, konfigurasi autentikasi/ACL, serta aturan network access di deployment EMQX.
-
-Jangan menambahkan `MQTT_*`, `DASHBOARD_PASSWORD`, atau `AUTH_TOKEN_SECRET` ke `.env` frontend, `VITE_*`, GitHub, maupun chat. Untuk deployment Vercel, masukkan secret MQTT hanya ke environment variables project Vercel.
-
-## Kontrak MQTT untuk firmware ESP32
-
-Topic perangkat default:
-
-| Arah | Topic | Payload |
-| --- | --- | --- |
-| Backend → ESP32 | `smartagro/esp32-01/command/pump` | Teks `ON` atau `OFF`; QoS 1, tidak retained |
-| ESP32 → Backend | `smartagro/esp32-01/status/pump` | JSON, contoh `{"online":true,"pumpOn":true,"updatedAt":1790000000000}`. Jika status pompa belum diketahui, kirim `{"online":true,"pumpOn":null,"updatedAt":1790000000000}`. |
-| ESP32 → Backend | `smartagro/esp32-01/telemetry` | JSON dengan `timestamp`, `ph`, `temperature`, `ec`, `moisture`, `nitrogen`, `phosphorus`, `potassium`, `deviceId` |
-
-ESP32 perlu subscribe ke topic perintah dan publish status/telemetry secara berkala menggunakan MQTTS. Backend menandai perangkat online jika pesan status JSON valid diterima dalam 20 detik terakhir; `pumpOn` dapat berupa `true`, `false`, atau `null` jika status pompa belum diketahui. Pesan `{"online":false,"pumpOn":null}` menandai perangkat offline. Nilai sensor yang belum tersedia sebaiknya dikirim sebagai `null` pada payload telemetry; itu tidak menggantikan heartbeat status. Telemetry MQTT yang lebih lama dari 60 detik tidak dipakai dashboard; CSV Google Sheets tetap menjadi fallback.
-
-Mintalah teman yang mengurus firmware untuk mengonfirmasi topic, format payload status, interval heartbeat, serta dukungan TLS/autentikasi. Sesuaikan variabel konfigurasi/topik firmware sebelum deployment.
-
-### Firmware empat pompa
-
-Folder `firmware/esp32-smart-agro/` berisi sketch Arduino IDE yang memakai satu perintah `ON`/`OFF` untuk mengendalikan keempat relay bersama pada GPIO 27, 26, 32, dan 33. Sketch mengirim heartbeat status berkala ke topic backend. Sketch ini tidak mengirim telemetry sensor; tambahkan pembacaan sensor yang sesuai sebelum mengharapkan nilai metrik MQTT.
+### Menyiapkan ESP32 dan pompa
 
 1. Salin `firmware/esp32-smart-agro/secrets.example.h` menjadi `firmware/esp32-smart-agro/secrets.h`.
-2. Isi nama/password Wi-Fi dan username/password MQTT khusus ESP32 di `secrets.h`. File `secrets.h` diabaikan Git; jangan commit atau bagikan file tersebut.
+2. Isi nama dan password Wi-Fi serta kredensial MQTT khusus ESP32 di `secrets.h`. Jangan membagikan atau mengunggah file yang berisi kredensial.
 3. Buka `firmware/esp32-smart-agro/esp32-smart-agro.ino` di Arduino IDE dan pasang library `PubSubClient` serta `ArduinoJson`.
-4. Pastikan credential MQTT ESP32 memiliki izin subscribe ke topic command dan publish ke topic status yang tercantum di atas. MQTT Client ID ESP32 sudah dibedakan dari backend.
-5. Pilih board/port ESP32 yang benar, upload, lalu buka Serial Monitor pada 115200 baud. Uji relay dengan hati-hati tanpa menghubungkan beban pompa terlebih dahulu; pastikan level aktif relay cocok dengan `RELAY_ACTIVE_LOW`.
+4. Pilih board dan port ESP32 yang sesuai, lalu unggah sketch.
+5. Periksa Serial Monitor pada 115200 baud untuk melihat status koneksi.
+6. Pastikan GPIO relay dan jenis modul relay sesuai. Uji rangkaian tanpa beban pompa terlebih dahulu; pemasangan pompa listrik harus dilakukan dengan memperhatikan keselamatan dan isolasi yang tepat.
 
-`secureClient.setInsecure()` disediakan hanya untuk pengujian awal TLS dan tidak memvalidasi sertifikat broker. Untuk penggunaan permanen, ganti dengan verifikasi sertifikat CA EMQX. Jangan hubungkan pompa bermuatan listrik sebelum rangkaian, catu daya, relay, dan kondisi fail-safe diperiksa teknisi yang kompeten.
+ESP32 dan API harus menggunakan kredensial broker serta topic MQTT yang sesuai. Topic default project adalah:
 
-## Deployment ke Vercel
+| Arah komunikasi | Topic |
+| --- | --- |
+| API ke ESP32 (perintah pompa) | `smartagro/esp32-01/command/pump` |
+| ESP32 ke broker (status pompa) | `smartagro/esp32-01/status/pump` |
+| Telemetry sensor jika dikirim perangkat | `smartagro/esp32-01/telemetry` |
 
-Project dideploy sebagai Vercel project dengan dua service: `smart-agro-dashboard` (Vite SPA) dan `smart-agro-api` (Express API). Rewrite publik mengarahkan `/api/*` ke API dan path lainnya ke dashboard. Import repository ke Vercel dengan Root Directory di root repository; `vercel.json` mengatur instalasi dan build tiap service.
+### Menjalankan versi online
 
-Service API menggunakan `backend/src/vercel.js`, yang memanggil handler request-scoped `backend/src/vercelHandler.js`. Handler ini membuka koneksi MQTT TLS singkat per request untuk membaca retained message atau mengirim command; proses ini tidak bergantung pada MQTT bridge persisten yang dipakai saat menjalankan backend lokal.
+Project dikonfigurasi untuk deployment ke Vercel dengan service dashboard dan API. Masukkan kredensial MQTT serta akun dashboard sebagai environment variables pada pengaturan Vercel, bukan ke repository. Setelah deployment, pastikan Google Sheets dapat dibaca sebagai CSV dan ESP32 menggunakan broker, kredensial, serta topic yang sama.
 
-Tambahkan environment variables berikut pada project Vercel (Production, dan Preview bila digunakan):
+## Anggota Tim
 
-- `MQTT_BROKER_URL`: endpoint TLS EMQX, format `mqtts://hostname:8883`.
-- `MQTT_USERNAME` / `MQTT_PASSWORD`: credential backend MQTT khusus dengan izin sesuai topic yang digunakan.
-- `MQTT_CLIENT_ID`: opsional, default `smart-agro-backend`; handler menambahkan suffix unik per koneksi.
-- `MQTT_TOPIC_PREFIX`: opsional, default `smartagro`.
-- `MQTT_DEVICE_ID`: opsional, default `esp32-01`.
-- `DASHBOARD_USERNAME`, `DASHBOARD_PASSWORD` (minimal 12 karakter), dan `AUTH_TOKEN_SECRET` (minimal 32 karakter acak).
-- `FRONTEND_ORIGINS`: opsional, daftar origin tambahan yang diizinkan, dipisahkan koma. Tambahkan domain kustom di sini jika frontend diakses melalui domain itu.
-
-Jangan set `VITE_API_BASE_URL` di Vercel; frontend memanggil `/api` pada origin yang sama. Tidak ada service binding karena browser memakai routing publik `/api/*` dan API hanya berkomunikasi dengan broker MQTT eksternal. MQTT credential dan signing secret tidak boleh dimasukkan ke GitHub atau variabel `VITE_*`.
-
-### Batasan Vercel Functions dan retained MQTT
-
-Vercel Functions tidak menjaga satu koneksi MQTT terus-menerus. Setiap request status/telemetry membuka koneksi TLS singkat, mengambil retained message dari broker, lalu menutup koneksi; command juga dipublish lewat koneksi singkat. Karena itu firmware wajib publish status retained berkala ke `smartagro/esp32-01/status/pump` dan telemetry retained ke `smartagro/esp32-01/telemetry`. Status harus menyertakan `online` dan `pumpOn`; Last Will retained `{"online":false,"pumpOn":null}` membantu broker menyimpan kondisi offline saat ESP32 terputus. Telemetry harus membawa `timestamp` epoch milliseconds atau ISO timestamp yang diperbarui tiap publish; retained data lebih tua dari 60 detik dianggap stale. Endpoint Vercel menggabungkan status dan telemetry dalam satu request, dengan polling dashboard tiap 15 detik agar jumlah invocation lebih terkendali.
-
-Rate limit in-memory pada serverless hanya berlaku per instance, bukan pembatas terdistribusi. Untuk kontrol pompa publik/produksi, tambahkan rate limit bersama dan validasi operasional yang lebih kuat, uji ACL broker, serta uji disconnect/reconnect perangkat. Free Hobby plan memiliki batas usage dan eligibility yang ditetapkan Vercel; cek dashboard saat signup, dan jangan aktifkan billing/upgrade jika tidak ingin menambahkan metode pembayaran.
-
-## Data sensor dan penyimpanan
-
-Google Sheets tetap menjadi sumber penyimpanan yang dibaca langsung oleh frontend, bukan database relasional. Untuk Vercel, status dan telemetry diambil dari retained MQTT message dan tidak disimpan sebagai riwayat di function. Jika ingin menyimpan riwayat, tambahkan integrasi database atau Google Sheets API.
-
-Refresh CSV otomatis berjalan setiap 30 detik. Prediksi cuaca menggunakan Open-Meteo di koordinat Medan (3.5952, 98.6722).
+- Ramzi Azizan
+- M. Taufan Pasya Lubis
+- Amanda Putri Rizkita
