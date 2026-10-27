@@ -235,6 +235,8 @@ Tim kami:
 - M. Taufan Pasya Lubis
 - Amanda Putri Rizkita
 
-Universitas Islam Negeri Sumatera Utara
-Fakultas Sains dan Teknologi
-Prodi Ilmu Komputer
+Universitas Islam Negeri Sumatera Utara.
+
+Fakultas Sains dan Teknologi.
+
+Prodi Ilmu Komputer.
