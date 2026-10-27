@@ -1,5 +1,4 @@
-const SHEET_CSV_URL =
-  'https://docs.google.com/spreadsheets/d/10P_5T0kOlcCjmxXzyBLU8qr76NiOYcmliPZwH7rehg8/export?format=csv'
+const SHEET_CSV_URL = (import.meta.env.VITE_SHEETS_CSV_URL || '').trim()
 const OPEN_METEO_URL =
   'https://api.open-meteo.com/v1/forecast?latitude=3.5952&longitude=98.6722&current=weather_code&hourly=weather_code,precipitation_probability&forecast_days=1&timezone=Asia%2FBangkok'
 const RAIN_WEATHER_CODES = new Set([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99])
@@ -48,6 +47,10 @@ function parseNumber(value) {
 }
 
 export async function fetchSensorFromCSV() {
+  if (!SHEET_CSV_URL) {
+    throw new Error('URL Google Sheets belum dikonfigurasi.')
+  }
+
   const response = await fetch(SHEET_CSV_URL, { cache: 'no-store' })
   if (!response.ok) {
     throw new Error(`Spreadsheet mengembalikan HTTP ${response.status}`)

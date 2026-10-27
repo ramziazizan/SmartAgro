@@ -46,20 +46,20 @@ Persyaratan: Node.js versi 20 atau lebih baru dan npm.
 2. Pasang dependency frontend:
 
    ```sh
-   npm ci
+   npm --prefix "Source Code Dashboard/frontend" ci
    ```
 
-3. Jika ingin menggunakan fitur MQTT, salin `backend/.env.example` menjadi `backend/.env`, kemudian isi konfigurasi broker MQTT dan akun dashboard. Jangan masukkan kredensial ke source code atau commit file `.env`.
+3. Jika ingin menggunakan data sensor, salin `Source Code Dashboard/frontend/.env.example` menjadi `Source Code Dashboard/frontend/.env` dan atur `VITE_SHEETS_CSV_URL` ke URL CSV yang memang boleh diakses publik. Untuk fitur MQTT lokal, salin `Source Code Dashboard/frontend/backend/.env.example` menjadi `Source Code Dashboard/frontend/backend/.env`, kemudian isi konfigurasi broker dan akun dashboard. Jangan commit file `.env`.
 4. Jalankan backend lokal di terminal pertama:
 
    ```sh
-   npm run dev:api
+   npm --prefix "Source Code Dashboard/frontend" run dev:api
    ```
 
 5. Jalankan dashboard di terminal kedua:
 
    ```sh
-   npm run dev
+   npm --prefix "Source Code Dashboard/frontend" run dev
    ```
 
 6. Buka alamat lokal yang ditampilkan Vite di terminal. Dashboard dapat menampilkan data CSV dan cuaca; fitur status serta kendali pompa membutuhkan konfigurasi broker dan login MQTT yang valid.
@@ -67,16 +67,16 @@ Persyaratan: Node.js versi 20 atau lebih baru dan npm.
 Vite meneruskan request `/api` ke backend lokal di `http://localhost:3001`. Untuk memeriksa kualitas kode dan build, jalankan:
 
 ```sh
-npm run lint
-npm run build
-npm run test:api
+npm --prefix "Source Code Dashboard/frontend" run lint
+npm --prefix "Source Code Dashboard/frontend" run build
+npm --prefix "Source Code Dashboard/frontend" run test:api
 ```
 
 ### Menyiapkan ESP32 dan pompa
 
-1. Salin `firmware/esp32-smart-agro/secrets.example.h` menjadi `firmware/esp32-smart-agro/secrets.h`.
+1. Salin `Source Code Tools IoT/secrets.example.h` menjadi `Source Code Tools IoT/secrets.h`.
 2. Isi nama dan password Wi-Fi serta kredensial MQTT khusus ESP32 di `secrets.h`. Jangan membagikan atau mengunggah file yang berisi kredensial.
-3. Buka `firmware/esp32-smart-agro/esp32-smart-agro.ino` di Arduino IDE dan pasang library `PubSubClient` serta `ArduinoJson`.
+3. Buka `Source Code Tools IoT/SMART_AGRO_FINAL_V7.ino` di Arduino IDE dan pasang library yang diperlukan sketch.
 4. Pilih board dan port ESP32 yang sesuai, lalu unggah sketch.
 5. Periksa Serial Monitor pada 115200 baud untuk melihat status koneksi.
 6. Pastikan GPIO relay dan jenis modul relay sesuai. Uji rangkaian tanpa beban pompa terlebih dahulu; pemasangan pompa listrik harus dilakukan dengan memperhatikan keselamatan dan isolasi yang tepat.
@@ -91,7 +91,23 @@ ESP32 dan API harus menggunakan kredensial broker serta topic MQTT yang sesuai. 
 
 ### Menjalankan versi online
 
-Project dikonfigurasi untuk deployment ke Vercel dengan service dashboard dan API. Masukkan kredensial MQTT serta akun dashboard sebagai environment variables pada pengaturan Vercel, bukan ke repository. Setelah deployment, pastikan Google Sheets dapat dibaca sebagai CSV dan ESP32 menggunakan broker, kredensial, serta topic yang sama.
+Project dikonfigurasi sebagai satu deployment Vercel: frontend Vite dibuat ke `dist`, sedangkan `api/[...path].js` meneruskan request `/api/*` ke API serverless. Hubungkan repository dengan **Root Directory** Vercel diatur ke `Source Code Dashboard/frontend`. Folder `Source Code Tools IoT` ikut tersimpan di GitHub, tetapi sketch `.ino` bukan aplikasi yang dideploy ke Vercel; firmware diunggah ke ESP32 terpisah.
+
+Tambahkan environment variables berikut pada pengaturan Vercel untuk mengaktifkan MQTT dan login dashboard:
+
+- `VITE_SHEETS_CSV_URL` (URL CSV Google Sheets yang memang boleh diakses publik; variabel `VITE_*` akan terlihat di browser)
+- `MQTT_BROKER_URL`
+- `MQTT_USERNAME`
+- `MQTT_PASSWORD`
+- `DASHBOARD_USERNAME`
+- `DASHBOARD_PASSWORD`
+- `AUTH_TOKEN_SECRET` (minimal 32 karakter acak)
+- `FRONTEND_ORIGINS` (origin deployment dashboard; pisahkan beberapa origin dengan koma)
+- `MQTT_CLIENT_ID`, `MQTT_TOPIC_PREFIX`, dan `MQTT_DEVICE_ID` bila ingin mengganti nilai default
+
+Jangan masukkan kredensial ke source code atau commit file `.env`/`secrets.h`. Sketch memakai template `Source Code Tools IoT/secrets.example.h`; isi salinan lokal `Source Code Tools IoT/secrets.h` saja. File credential dan environment lokal sudah di-ignore oleh Git. Nilai Wi-Fi, MQTT, dan URL Apps Script yang pernah tertanam di sketch lama harus dirotasi sebelum digunakan kembali. Pastikan Google Sheets hanya berisi data yang memang boleh dibaca oleh dashboard publik.
+
+Untuk development lokal, salin `Source Code Dashboard/frontend/.env.example` menjadi `.env` di folder `Source Code Dashboard/frontend` dan isi `VITE_SHEETS_CSV_URL` dengan URL CSV publik. URL tersebut sengaja tidak disimpan di source code; jangan gunakan variabel `VITE_*` untuk nilai rahasia.
 
 ## Anggota Tim
 
