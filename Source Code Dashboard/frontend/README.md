@@ -16,12 +16,7 @@ Smart Agro dibuat untuk membantu memantau kondisi tanaman melalui satu dashboard
 
 ### Perangkat
 
-1. ESP32 terhubung ke Wi-Fi dan broker MQTT menggunakan koneksi TLS.
-2. ESP32 menerima perintah pompa `ON` atau `OFF` dari broker MQTT.
-3. Satu perintah mengendalikan satu relay di pin GPIO 26
-4. ESP32 mengirimkan status online dan status pompa ke broker secara berkala.
-
-Sketch firmware yang tersedia saat ini menangani koneksi MQTT dan kendali empat relay. Sketch tersebut belum membaca sensor atau mengirim telemetry sensor. Dashboard membaca data sensor dari Google Sheets CSV, dan dapat memakai telemetry MQTT apabila perangkat lain mengirimkannya dengan format yang didukung.
+Firmware ESP32 membaca sensor tanah RS485 Modbus RTU, mengirim telemetry dan status pompa melalui MQTT, mencatat bacaan ke Google Sheets melalui Apps Script, serta menampilkan status di OLED SSD1306. Dashboard membaca bacaan sensor utama dari Google Sheets CSV.
 
 ### Dashboard
 
@@ -74,14 +69,9 @@ npm run test:api
 
 ### Menyiapkan ESP32 dan pompa
 
-1. Salin `firmware/esp32-smart-agro/secrets.example.h` menjadi `firmware/esp32-smart-agro/secrets.h`.
-2. Isi nama dan password Wi-Fi serta kredensial MQTT khusus ESP32 di `secrets.h`. Jangan membagikan atau mengunggah file yang berisi kredensial.
-3. Buka `firmware/esp32-smart-agro/esp32-smart-agro.ino` di Arduino IDE dan pasang library `PubSubClient` serta `ArduinoJson`.
-4. Pilih board dan port ESP32 yang sesuai, lalu unggah sketch.
-5. Periksa Serial Monitor pada 115200 baud untuk melihat status koneksi.
-6. Pastikan GPIO relay dan jenis modul relay sesuai. Uji rangkaian tanpa beban pompa terlebih dahulu; pemasangan pompa listrik harus dilakukan dengan memperhatikan keselamatan dan isolasi yang tepat.
+Petunjuk perangkat, wiring/pin, library, konfigurasi secrets lokal, topic/payload MQTT, integrasi Google Sheets, dan troubleshooting tersedia di [README utama repository](../../README.md#menyiapkan-esp32-dan-pompa). Jangan commit file `.env` atau `secrets.h`; gunakan template `Source Code Tools IoT/secrets.example.h` dan ganti credential yang pernah tertanam di sketch sebelumnya.
 
-ESP32 dan API harus menggunakan kredensial broker serta topic MQTT yang sesuai. Topic default project adalah:
+ESP32 dan API harus menggunakan kredensial broker serta topic MQTT yang sesuai. Topic command/status default project adalah:
 
 | Arah komunikasi | Topic |
 | --- | --- |
