@@ -10,7 +10,7 @@
 
 ---
 
-## Lokasi file untuk Website ada di root repository, dan untuk sourcecode firmware IoT ada di folder "firmware".
+## !!!Lokasi file untuk Website ada di root repository, dan untuk sourcecode firmware IoT ada di folder "firmware"!!!
 
 ## Daftar Isi
 - [Deskripsi & Latar Belakang](#-deskripsi--latar-belakang)
