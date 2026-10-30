@@ -203,7 +203,7 @@ export default function SensorChart({ sensorData }) {
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-white">
           <LineChartIcon className="h-4 w-4 text-violet-400" />
-          <span>Grafik Tren {activeParam.label}</span>
+          <span>Grafik {activeParam.label}</span>
         </div>
 
         <div className="flex items-center gap-1.5 text-xs text-slate-400">
