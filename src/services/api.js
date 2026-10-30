@@ -1,5 +1,8 @@
-const SHEET_CSV_URL = (import.meta.env.VITE_SHEETS_CSV_URL || '').trim()
+const SHEET_CSV_URL =
+  import.meta.env.VITE_SHEETS_CSV_URL ||
+  'https://docs.google.com/spreadsheets/d/10P_5T0kOlcCjmxXzyBLU8qr76NiOYcmliPZwH7rehg8/export?format=csv'
 const OPEN_METEO_URL =
+  import.meta.env.VITE_OPEN_METEO_URL ||
   'https://api.open-meteo.com/v1/forecast?latitude=3.5952&longitude=98.6722&current=weather_code&hourly=weather_code,precipitation_probability&forecast_days=1&timezone=Asia%2FBangkok'
 const RAIN_WEATHER_CODES = new Set([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99])
 
@@ -47,10 +50,6 @@ function parseNumber(value) {
 }
 
 export async function fetchSensorFromCSV() {
-  if (!SHEET_CSV_URL) {
-    throw new Error('URL Google Sheets belum dikonfigurasi.')
-  }
-
   const response = await fetch(SHEET_CSV_URL, { cache: 'no-store' })
   if (!response.ok) {
     throw new Error(`Spreadsheet mengembalikan HTTP ${response.status}`)
@@ -63,23 +62,49 @@ export async function fetchSensorFromCSV() {
   }
 
   const rows = parseCsv(csvText)
-  const dataRows = rows.slice(1)
-  const latestRow = dataRows[dataRows.length - 1]
+  const dataRows = rows.slice(1).filter((r) => r.length >= 8 && r.some((c) => c.trim() !== ''))
 
-  if (!latestRow || latestRow.length < 9) {
-    throw new Error('Baris data spreadsheet tidak memiliki 9 kolom yang diperlukan')
+  if (!dataRows.length) {
+    throw new Error('Baris data spreadsheet tidak memiliki data yang valid')
   }
 
+  const parsedList = dataRows.map((r) => {
+    const rawTs = (r[0] || '').trim()
+    const timeMatch = rawTs.match(/(\d{2}:\d{2})(?::\d{2})?/)
+    const timeShort = timeMatch ? timeMatch[1] : rawTs
+
+    return {
+      timestamp: rawTs,
+      timeShort,
+      ph: parseNumber(r[1] || ''),
+      temperature: parseNumber(r[2] || ''),
+      suhu: parseNumber(r[2] || ''),
+      ec: parseNumber(r[3] || ''),
+      moisture: parseNumber(r[4] || ''),
+      kelembapan: parseNumber(r[4] || ''),
+      nitrogen: parseNumber(r[5] || ''),
+      n: parseNumber(r[5] || ''),
+      phosphorus: parseNumber(r[6] || ''),
+      p: parseNumber(r[6] || ''),
+      potassium: parseNumber(r[7] || ''),
+      k: parseNumber(r[7] || ''),
+      deviceId: (r[8] || 'ESP32-Soil-01').trim(),
+    }
+  })
+
+  const firstTime = new Date(parsedList[0].timestamp).getTime()
+  const lastTime = new Date(parsedList[parsedList.length - 1].timestamp).getTime()
+  const isDescending = !Number.isNaN(firstTime) && !Number.isNaN(lastTime) ? firstTime >= lastTime : false
+
+  const latest = isDescending ? parsedList[0] : parsedList[parsedList.length - 1]
+  const recentHistory = isDescending
+    ? parsedList.slice(0, 40).reverse()
+    : parsedList.slice(-40)
+
   return {
-    timestamp: latestRow[0].trim(),
-    ph: parseNumber(latestRow[1]),
-    temperature: parseNumber(latestRow[2]),
-    ec: parseNumber(latestRow[3]),
-    moisture: parseNumber(latestRow[4]),
-    nitrogen: parseNumber(latestRow[5]),
-    phosphorus: parseNumber(latestRow[6]),
-    potassium: parseNumber(latestRow[7]),
-    deviceId: latestRow[8].trim(),
+    ...latest,
+    history: recentHistory,
+    allHistory: parsedList,
   }
 }
 

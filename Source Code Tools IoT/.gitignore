@@ -1,6 +1,0 @@
-# Keep per-device credentials and local sensor exports out of commits.
-secrets.h
-secrets.local.h
-*.local.csv
-*.private.csv
-private-data/

@@ -1,7 +1,15 @@
-import 'dotenv/config'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import dotenv from 'dotenv'
 import { readConfig } from './config.js'
 import { createApp } from './app.js'
 import { createMqttBridge } from './mqttBridge.js'
+
+const currentDir = dirname(fileURLToPath(import.meta.url))
+// Membaca file .env tunggal dari root project atau dari direktori backend jika ada
+dotenv.config({ path: resolve(currentDir, '../../.env') })
+dotenv.config({ path: resolve(currentDir, '../.env') })
+dotenv.config()
 
 const config = readConfig()
 const bridge = createMqttBridge(config)

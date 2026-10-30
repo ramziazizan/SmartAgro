@@ -10,19 +10,12 @@ import {
   Zap,
 } from 'lucide-react'
 import { fetchSensorFromCSV, fetchWeather } from './services/api.js'
+import { getPumpAutomationDecision } from './services/automationLogic.js'
 import AutomationBanner from './components/AutomationBanner.jsx'
 import Header from './components/Header.jsx'
 import MetricsGrid from './components/MetricsGrid.jsx'
 
-const REFRESH_INTERVAL = 15000
-
-function getAutomationAction(moisture, weather) {
-  if (typeof moisture !== 'number') return null
-  if (moisture >= 40) return 'Pompa Mati'
-  if (weather === 'Cerah') return 'Pompa Hidup'
-  if (weather === 'Hujan') return 'Pompa Mati [Prakiraan Hujan]'
-  return null
-}
+const REFRESH_INTERVAL = 15_000
 
 export default function App() {
   const [csvSensorData, setCsvSensorData] = useState(null)
@@ -126,7 +119,14 @@ export default function App() {
 
   const sensorData = mqttSensorData || csvSensorData
   const moisture = sensorData?.moisture
-  const action = getAutomationAction(moisture, weather?.condition)
+
+  // Logika keputusan pompa berbasis multi-ambang batas kelembapan & cuaca
+  const automationDecision = getPumpAutomationDecision({
+    moisture,
+    weather: weather?.condition,
+    precipitationProbability: weather?.precipitationProbability,
+  })
+
   const metrics = [
     {
       title: 'Air / Kelembapan',
@@ -200,12 +200,15 @@ export default function App() {
         )}
 
         <AutomationBanner
-          action={action}
+          action={automationDecision.action}
+          decision={automationDecision}
           forecastTime={weather?.forecastTime}
           moisture={moisture}
           onPumpStatusUpdate={handlePumpStatusUpdate}
           onTelemetryUpdate={handleMqttTelemetry}
+          precipitationProbability={weather?.precipitationProbability}
           pumpStatus={pumpStatus}
+          sensorData={sensorData}
           weather={weather?.condition}
         />
 

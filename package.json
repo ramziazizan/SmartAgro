@@ -8,10 +8,12 @@
     "dev:api": "npm --prefix backend run dev",
     "build": "vite build",
     "lint": "oxlint",
+    "test": "npm run test:api",
     "test:api": "npm --prefix backend test",
     "preview": "vite preview"
   },
   "dependencies": {
+    "chart.js": "^4.6.1",
     "lucide-react": "^1.59.0",
     "mqtt": "^5.16.1",
     "react": "^19.2.8",
