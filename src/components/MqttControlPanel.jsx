@@ -7,8 +7,8 @@ import {
 } from '../services/mqttApi.js'
 import SensorChart from './SensorChart.jsx'
 
-const STATUS_POLL_INTERVAL = 15_000
-const HEALTH_POLL_INTERVAL = 60_000
+const STATUS_POLL_INTERVAL = 15000
+const HEALTH_POLL_INTERVAL = 60000
 
 export default function MqttControlPanel({ onPumpStatusUpdate, onTelemetryUpdate, sensorData }) {
   const [token, setToken] = useState('')

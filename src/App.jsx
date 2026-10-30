@@ -12,6 +12,7 @@ import {
 import { fetchSensorFromCSV, fetchWeather } from './services/api.js'
 import { getPumpAutomationDecision } from './services/automationLogic.js'
 import AutomationBanner from './components/AutomationBanner.jsx'
+import BacktestPanel from './components/BacktestPanel.jsx'
 import Header from './components/Header.jsx'
 import MetricsGrid from './components/MetricsGrid.jsx'
 
@@ -224,6 +225,8 @@ export default function App() {
           </div>
           <MetricsGrid metrics={metrics} />
         </section>
+
+        <BacktestPanel />
       </main>
     </div>
   )

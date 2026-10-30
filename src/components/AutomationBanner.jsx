@@ -31,7 +31,7 @@ export default function AutomationBanner({
   const decisionReason = decision.reason
 
   const actualPumpStatus = !pumpStatus
-    ? 'Status sistem terhubung dengan logika cerdas sensor & cuaca.'
+    ? 'Status sistem terhubung dengan logika antara sensor & cuaca.'
     : !pumpStatus.online
       ? 'ESP32 standby; rekomendasi otomatisasi tetap aktif menganalisis data.'
       : typeof pumpStatus.pumpOn !== 'boolean'
